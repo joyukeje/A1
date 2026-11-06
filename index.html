@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offer</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #fff; color: #111; font-family: Arial, sans-serif; padding: 24px; text-align: center; }
+  button { width: 260px; padding: 14px; font-size: 16px; border: 2px solid #111; border-radius: 8px; background: #111; color: #fff; cursor: pointer; }
+  button.alt { background: #fff; color: #111; }
+  #msg { min-height: 22px; max-width: 320px; word-break: break-all; font-size: 15px; }
+</style>
+</head>
+<body>
+<button id="open">Open page</button>
+<button id="copy" class="alt">Copy submission code</button>
+<p id="msg"></p>
+
+<script>
+  // ===== CONFIG =====
+  var MODE = "demo";                          // "demo" or "real"
+  var SCRIPT_URL = "PASTE-APPS-SCRIPT-URL";   // your Apps Script /exec URL
+  var PAGE2_URL = "PASTE-DEMO-PAGE2-URL";     // demo only: where tb-demo-page2.html is hosted
+  var GG_LINK = "PASTE-GG-PROMO-LINK";        // real only: your GG agency promo link
+  var UID_PARAMS = ["uid", "user_id", "userid", "id", "sub_id"]; // names TimeBucks might use for the user id
+  var CC_PARAMS = ["countrycode", "country", "country_code", "cc"]; // TimeBucks country code
+  // ==================
+
+  var q = new URLSearchParams(location.search);
+  function pick(list) { for (var i = 0; i < list.length; i++) { var v = q.get(list[i]); if (v) return v; } return ""; }
+  var uid = pick(UID_PARAMS);
+  var cc = pick(CC_PARAMS);
+  var msg = document.getElementById("msg");
+  function say(t) { msg.textContent = t; }
+  function enc(s) { return encodeURIComponent(s); }
+
+  if (!uid) say("Please open this page from your TimeBucks task link.");
+
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).catch(function () { fallback(t); });
+    } else { fallback(t); }
+  }
+  function fallback(t) {
+    var a = document.createElement("textarea");
+    a.value = t; a.style.position = "fixed"; a.style.opacity = "0";
+    document.body.appendChild(a); a.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(a);
+  }
+
+  document.getElementById("open").onclick = function () {
+    if (!uid) { say("Missing user id. Open this page from TimeBucks."); return; }
+    fetch(SCRIPT_URL + "?action=register&id=" + enc(uid)).catch(function () {});
+    var url;
+    if (MODE === "demo") {
+      url = PAGE2_URL + "?uid=" + enc(uid) + "&cc=" + enc(cc);
+    } else {
+      url = GG_LINK + (GG_LINK.indexOf("?") > -1 ? "&" : "?") + "p1=" + enc(uid);
+    }
+    window.open(url, "_blank");
+  };
+
+  document.getElementById("copy").onclick = function () {
+    if (!uid) { say("Missing user id."); return; }
+    say("Checking...");
+    fetch(SCRIPT_URL + "?action=lookup&id=" + enc(uid))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.status === "success") { say("Your code: " + d.code + " (copied)"); copyText(d.code); }
+        else if (d.status === "declined") { say("Signup was not successful."); }
+        else { say("Not confirmed yet. Wait a minute and try again."); }
+      })
+      .catch(function () { say("Error. Please try again."); });
+  };
+</script>
+</body>
+</html>
